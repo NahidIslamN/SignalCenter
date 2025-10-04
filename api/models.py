@@ -16,7 +16,9 @@ class CustomUser(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     image = models.ImageField(null=True, blank=True, upload_to="profile")
 
-
+    last_activity = models.DateTimeField(null=True, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     
     def __str__(self):
         return self.email + self.username
