@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Django Chat Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      background: #f2f2f2;
+    }
+    #chat-box {
+      width: 600px;
+      height: 400px;
+      margin: 20px auto;
+      border: 1px solid #ccc;
+      background: #fff;
+      overflow-y: scroll;
+      padding: 10px;
+    }
+    .message {
+      margin: 8px 0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      max-width: 70%;
+      word-wrap: break-word;
+    }
+    .me {
+      background: #d1ffd6;
+      margin-left: auto;
+    }
+    .other {
+      background: #e6e6ff;
+      margin-right: auto;
+    }
+    #controls {
+      width: 600px;
+      margin: 10px auto;
+      display: flex;
+      gap: 5px;
+    }
+    #controls textarea {
+      flex: 1;
+      resize: none;
+      height: 50px;
+      padding: 5px;
+    }
+    #controls input[type=file] {
+      flex: 0.7;
+    }
+    #controls button {
+      flex: 0.5;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #controls button:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;">Messenger Test</h2>
+
+  <div id="chat-box"></div>
+
+  <div id="controls">
+    <textarea id="message" placeholder="Type your message..."></textarea>
+    <input type="file" id="files" multiple>
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+
+
+
+<script>
+const chatId = 1;
+const ws = new WebSocket("ws://127.0.0.1:8000/ws/asc/chat/1/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU5NjU5NjM0LCJpYXQiOjE3NTk1NzMyMzQsImp0aSI6IjU4M2RmNzBmNmI1NjQzZTE4ZWZmNzQxODFjOWQ0ODc5IiwidXNlcl9pZCI6IjMifQ.yuX_RS8-DhrYQYSRJJTC2sU1tXQ7xDxmcrFuRcFMp08");
+
+ws.onopen = function() {
+    console.log("✅ Connected to WebSocket");
+};
+
+ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    const chatBox = document.getElementById("chat-box");
+
+    const div = document.createElement("div");
+    div.classList.add("message");
+    div.classList.add(data.username === "Anonymous" ? "other" : "me");
+
+    let html = `<b>${data.username}:</b> ${data.message || ""}`;
+
+    if (data.files && data.files.length > 0) {
+        html += "<br>";
+        data.files.forEach(url => {
+            if (url.match(/\.(jpeg|jpg|png|gif)$/)) {
+                html += `<img src="${url}" style="max-width:150px;display:block;margin-top:5px;">`;
+            } else {
+                html += `<a href="${url}" target="_blank">${url}</a><br>`;
+            }
+        });
+    }
+
+    div.innerHTML = html;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+};
+
+ws.onclose = function() {
+    console.log("❌ Disconnected from WebSocket");
+};
+
+function sendMessage() {
+    const text = document.getElementById("message").value;
+    const fileInput = document.getElementById("files").files;
+
+    const files = [];
+    const promises = [];
+
+    for (let i = 0; i < fileInput.length; i++) {
+        const file = fileInput[i];
+        const reader = new FileReader();
+
+        promises.push(new Promise((resolve) => {
+            reader.onload = function(e) {
+                files.push({
+                    title: file.name,
+                    file_base64: e.target.result  // send base64
+                });
+                resolve();
+            }
+            reader.readAsDataURL(file);  // convert file to base64
+        }));
+    }
+
+    // Wait for all files to be converted
+    Promise.all(promises).then(() => {
+        ws.send(JSON.stringify({
+            message: text,
+            files: files
+        }));
+        document.getElementById("message").value = "";
+        document.getElementById("files").value = "";
+    });
+}
+</script>
+
+</body>
+</html>
