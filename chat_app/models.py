@@ -14,9 +14,13 @@ class Chat(models.Model):
     participants = models.ManyToManyField(User, related_name="chats")
     name = models.CharField(max_length=255, blank=True, null=True)  # only for groups
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name or f"{self.chat_type} Chat {self.id}"
+    
+    class Meta:
+        ordering = ['-updated_at']
 
 
 class ChatInvite(models.Model):
@@ -88,6 +92,9 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender} -> Chat {self.chat.id}"
+    
+    class Meta:
+        ordering = ['-created_at']
 
 
 class TypingIndicator(models.Model):

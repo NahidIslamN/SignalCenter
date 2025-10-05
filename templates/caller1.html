@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test Caller1 </title>
+</head>
+<body>
+
+
+<!-- minimal HTML -->
+<video id="localVideo" autoplay muted playsinline></video>
+<video id="remoteVideo" autoplay playsinline></video>
+<button id="callBtn">Call</button>
+<button id="hangupBtn">Hangup</button>
+<script>
+const roomName = "demo_room"; // or set dynamically
+const wsProto = (location.protocol === "https:") ? "wss" : "ws";
+const wsUrl = `ws://127.0.0.1:8000/ws/asc/call/101010/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU5NjYyNDI2LCJpYXQiOjE3NTk1NzYwMjYsImp0aSI6IjU0ZWE5ZTg1NDYxMDQ4MmFhZmYyYWZkNmUzYzI2MWQ1IiwidXNlcl9pZCI6IjMifQ.AbI1THJh_c0LWiBq0wbSjOpLPuJAztuFUuCROsIvALU`;
+const ws = new WebSocket(wsUrl);
+
+let pc = null;
+let localStream = null;
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
+
+// basic STUN (and TURN in prod)
+const rtcConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" }, // public STUN
+    // add TURN here for prod: { urls: "turn:turn.example.com:3478", username: "user", credential: "pass" }
+  ],
+};
+
+ws.onopen = () => {
+  console.log("WS open");
+  // optionally send join
+  ws.send(JSON.stringify({ action: "join", data: {} }));
+};
+
+ws.onmessage = async (evt) => {
+  const msg = JSON.parse(evt.data);
+  const { action, data } = msg;
+  console.log("WS msg", action, data);
+
+  if (action === "offer") {
+    if (!pc) await preparePeerConnection();
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    ws.send(JSON.stringify({ action: "answer", data: { sdp: pc.localDescription } }));
+  } else if (action === "answer") {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  } else if (action === "ice") {
+    if (data.candidate) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      } catch (e) {
+        console.warn("addIceCandidate error", e);
+      }
+    }
+  } else if (action === "leave") {
+    // remote left
+    closePeerConnection();
+  }
+};
+
+async function preparePeerConnection() {
+  pc = new RTCPeerConnection(rtcConfig);
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      ws.send(JSON.stringify({ action: "ice", data: { candidate: event.candidate } }));
+    }
+  };
+
+  pc.ontrack = (event) => {
+    // attach remote stream (first stream)
+    remoteVideo.srcObject = event.streams[0];
+  };
+
+  // get local media
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  localVideo.srcObject = localStream;
+
+  // add tracks
+  localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+
+  return pc;
+}
+
+document.getElementById("callBtn").onclick = async () => {
+  if (!pc) await preparePeerConnection();
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  ws.send(JSON.stringify({ action: "offer", data: { sdp: pc.localDescription } }));
+};
+
+document.getElementById("hangupBtn").onclick = () => {
+  ws.send(JSON.stringify({ action: "hangup", data: {} }));
+  closePeerConnection();
+};
+
+function closePeerConnection() {
+  if (pc) {
+    pc.getSenders().forEach(s => { try { s.track && s.track.stop(); } catch(e){} });
+    pc.close();
+    pc = null;
+  }
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+    localVideo.srcObject = null;
+  }
+  remoteVideo.srcObject = null;
+}
+</script>
+
+    
+</body>
+</html>
