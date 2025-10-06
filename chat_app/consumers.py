@@ -8,21 +8,16 @@ import asyncio
 
 
 
-
-
-
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope.get("user")
         self.room_name = self.scope['url_route']['kwargs']['chat_id']
         self.room_group_name = f"chat_{self.room_name}"
-
         if await self.check_able_connect_or_not():
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
             await self.accept()
         else:
             await self.close()
-
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
@@ -30,11 +25,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         message_text = data.get("message", "")
         files_data = data.get("files", [])  # [{"title":"img.png","file_base64":"data:image/png;base64,...."}]
-
         # Save message + files
         message_obj = await self.save_message_to_database(message_text, files_data)
         files_urls = await self.get_message_files(message_obj)
-
         # Broadcast to group
         await self.channel_layer.group_send(
             self.room_group_name,
@@ -47,7 +40,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "files": files_urls
             }
         )
-
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
             "message": event["message"],
@@ -120,15 +112,10 @@ class MessageSeenStatusUpdate(AsyncWebsocketConsumer):
             print("Received from client:", data)
 
     async def broadcast_loop(self):
-        """
-        Loop that runs while the user is connected.
-        Stops automatically when the consumer disconnects.
-        """
+
         try:
             while True:
-
                 await self.chat_object_message_object_update()
-
                 message_text = "successfully done"
                 await self.channel_layer.group_send(
                     self.room_group_name,
@@ -137,8 +124,6 @@ class MessageSeenStatusUpdate(AsyncWebsocketConsumer):
                         "message": message_text
                     }
                 )
-                
-
                 await asyncio.sleep(1)  # wait 5 seconds before sending next
         except asyncio.CancelledError:
             # Loop stops when disconnect is called
@@ -238,57 +223,6 @@ class Sent_Reaction_ON_Message(AsyncWebsocketConsumer):
             return emuji
         except:
             return "message not found"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

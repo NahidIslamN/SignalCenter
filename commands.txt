@@ -1,1 +1,10 @@
 celery -A SignalCenter worker -l info
+
+
+
+#for docker
+docker-compose up -d --build
+
+sudo docker-compose up
+
+docker-compose down

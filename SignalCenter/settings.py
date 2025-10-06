@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+from decouple import config
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,12 +24,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-v!tbst2!=ep8^ni&@^b&#xdh5dlw1!7g@+9gh35wc!_)ft(lnj'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["10.10.12.99", "127.0.0.1", "localhost", "*"]
+
 
 
 # Application definition
@@ -83,7 +86,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [("redis", 6379)],
         },
     },
 }
@@ -179,11 +182,12 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com' # e.g., 'smtp.example.com'
 EMAIL_PORT = 587 # Port for SMTP (usually 587 for TLS)
 EMAIL_USE_TLS = True # Whether to use TLS encryption
-EMAIL_HOST_USER = 'nahidcse600795@gmail.com' # Your email address
-EMAIL_HOST_PASSWORD = "wxwipgukhukytijy" # Your email password or app password if using Gmail
-DEFAULT_FROM_EMAIL = 'nahidcse600795@gmail.com' # Default sender email address
+EMAIL_HOST_USER = config('EMAIL_HOST_USER') # Your email address
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD') # Your email password or app password if using Gmail
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL') # Default sender email address
 
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Example using Redis
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Example using Redis
+CELERY_BROKER_URL = 'redis://redis:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
